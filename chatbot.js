@@ -126,7 +126,7 @@ function initChatbot() {
   // Hiển thị tin nhắn lên UI
   function appendMessage(role, text) {
     const msgDiv = document.createElement('div');
-    msgDiv.className = \`shd-chat-msg \${role}\`;
+    msgDiv.className = `shd-chat-msg ${role}`;
     
     if (role === 'bot') {
       msgDiv.innerHTML = marked.parse(text);
@@ -143,11 +143,11 @@ function initChatbot() {
   function showTyping() {
     typingIndicator = document.createElement('div');
     typingIndicator.className = 'shd-typing-indicator';
-    typingIndicator.innerHTML = \`
+    typingIndicator.innerHTML = `
       <div class="shd-typing-dot"></div>
       <div class="shd-typing-dot"></div>
       <div class="shd-typing-dot"></div>
-    \`;
+    `;
     messagesContainer.appendChild(typingIndicator);
     messagesContainer.scrollTop = messagesContainer.scrollHeight;
   }
@@ -207,5 +207,9 @@ function initChatbot() {
   }
 }
 
-// Khởi chạy khi DOM đã load
-document.addEventListener('DOMContentLoaded', initChatbot);
+// Khởi chạy
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', initChatbot);
+} else {
+  initChatbot();
+}
