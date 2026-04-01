@@ -9,18 +9,100 @@ const openai = new OpenAI({
 });
 
 const MODEL_NAME = 'ces-chatbot-gpt-5.4';
-let systemPrompt = "";
 
-// 2. Hàm tải dữ liệu làm System Prompt
-async function loadChatbotData() {
-  try {
-    const response = await fetch('chatbot_data.txt');
-    if (!response.ok) throw new Error('Cannot load chatbot_data.txt');
-    systemPrompt = await response.text();
-  } catch (err) {
-    console.error("Lỗi tải thông tin chatbot:", err);
-  }
-}
+// ⚠️ THAY URL WEB APP CỦA BẠN TẠI ĐÂY (từ Google Apps Script Deploy)
+const LEAD_WEBHOOK_URL = 'THAY_URL_WEB_APP_CUA_BAN_O_DAY';
+
+// 2. System Prompt — Tư vấn viên SHD Academy + Thu thập Lead
+const SYSTEM_PROMPT = `
+Bạn là chuyên viên tư vấn của SHD Academy — tổ chức du học nghề Đức hàng đầu Việt Nam.
+
+══════════════════════════════════════
+THÔNG TIN TỔ CHỨC
+══════════════════════════════════════
+- Website: https://shdacademy.vn
+- Lĩnh vực: Du học nghề Đức (Ausbildung) — đào tạo, tư vấn, hỗ trợ định cư
+- Trụ sở: 679 Điện Biên Phủ, P. Thạnh Mỹ Tây, TP. HCM
+- VP tại Đức: John F. Kennedy Haus, 3. Etage, Rahel-Hirsch-Straße 10, 10557 Berlin
+- Hotline: (+84) 336 760 276
+- Email: info@shdacademy.vn
+- Giờ làm việc: Thứ 2 – Thứ 6: 8h00–17h00
+
+SHD Academy có hơn 7 năm kinh nghiệm, được Sở GD&ĐT TP.HCM công nhận xuất sắc 2 năm liên tiếp. Mạng lưới tuyển sinh tại 14 tỉnh thành, văn phòng đại diện tại 24 tỉnh thành.
+
+══════════════════════════════════════
+CHƯƠNG TRÌNH AUSBILDUNG
+══════════════════════════════════════
+Chương trình du học nghề kép tại Đức: vừa học lý thuyết tại trường nghề, vừa thực tập tại doanh nghiệp Đức — nhận lương ngay.
+
+Lộ trình:
+1. Tư vấn & định hướng nghề nghiệp
+2. Đào tạo tiếng Đức A1→B1 (7–9 tháng)
+3. Học sơ cấp nghề, văn hóa Đức
+4. Phỏng vấn doanh nghiệp Đức
+5. Làm hồ sơ visa, giấy tờ xuất cảnh
+6. Bay sang Đức, bắt đầu Ausbildung
+7. Hỗ trợ hội nhập sau khi đến Đức
+
+Ngành nghề: Điều dưỡng & Y tế, Nhà hàng – Khách sạn, Xây dựng, Kỹ thuật (cơ khí, điện tử, tự động hóa), Công nghệ ô tô, Bán lẻ, Chế biến thực phẩm, Quản trị văn phòng, Logistics, Thủ công, Công nghệ vi mô, Làm bánh.
+
+══════════════════════════════════════
+CHI PHÍ & TÀI CHÍNH
+══════════════════════════════════════
+- Học phí tại Đức: MIỄN PHÍ 100% trong 3 năm
+- Lương thực tập: 800–1.200 EUR/tháng (~20–30 triệu VNĐ)
+- Hỗ trợ vay vốn: NH Chính sách XH, Agribank, Shinhanbank — gói vay 150–200 triệu
+- Chi phí tại VN: dao động tùy ngành, SHD cung cấp bảng kê trước khi ký hợp đồng
+
+══════════════════════════════════════
+CAM KẾT & THÀNH TÍCH
+══════════════════════════════════════
+- Tỉ lệ đậu visa: 99%
+- Hoàn phí nếu không đậu visa do lỗi SHD
+- Hỗ trợ 24/7 sau khi sang Đức
+- Hơn 600 học viên đã sang Đức thành công
+- Học viên đạt Top 3 cuộc thi tay nghề bang Mecklenburg–Vorpommern
+- Lương sau tốt nghiệp: 2.000–3.500+ EUR/tháng
+
+Đối tượng: Học sinh tốt nghiệp THPT, bạn trẻ 18–30 tuổi, chưa biết tiếng Đức cũng được.
+
+══════════════════════════════════════
+NHIỆM VỤ CỦA BẠN (QUAN TRỌNG NHẤT)
+══════════════════════════════════════
+
+Bạn có 2 nhiệm vụ song song:
+
+▸ NHIỆM VỤ 1: TƯ VẤN CHUYÊN NGHIỆP
+- Trả lời chính xác dựa trên thông tin ở trên. KHÔNG bịa.
+- Nếu ngoài phạm vi → hướng dẫn gọi Hotline (+84) 336 760 276 hoặc email info@shdacademy.vn
+- Xưng "mình" / gọi khách "bạn" hoặc "anh/chị". Giọng nhiệt tình, chuyên nghiệp, đáng tin.
+
+▸ NHIỆM VỤ 2: THU THẬP THÔNG TIN KHÁCH HÀNG (LEAD)
+Bạn cần khéo léo thu thập 3 thông tin: Họ tên, Số điện thoại, Email.
+
+Cách làm:
+- KHÔNG hỏi thẳng cả 3 cùng lúc. Hãy lồng ghép tự nhiên vào cuộc trò chuyện.
+- Ví dụ: sau khi tư vấn xong một vấn đề, hỏi "Mình xưng hô thế nào cho tiện nhỉ? Bạn tên gì ạ?"
+- Sau khi có tên, tiếp tục tư vấn rồi mới hỏi: "Để mình gửi tài liệu chi tiết, bạn cho mình xin email nhé?"
+- Cuối cùng: "Bạn để lại SĐT để chuyên viên SHD gọi tư vấn chi tiết hơn nha?"
+- Nếu khách từ chối thông tin nào, KHÔNG ép. Tiếp tục tư vấn bình thường.
+
+▸ KHI ĐÃ THU THẬP ĐỦ CẢ 3 THÔNG TIN (tên, SĐT, email):
+
+Bạn PHẢI đánh giá intent_level dựa trên cuộc hội thoại:
+- "hot": Khách hỏi cụ thể về chi phí, lộ trình, thời gian, thủ tục → có ý định đăng ký rõ ràng
+- "warm": Khách quan tâm nhưng còn phân vân, hỏi chung chung
+- "cold": Khách chỉ tìm hiểu sơ bộ, chưa có ý định rõ
+
+Và BẮT BUỘC thêm tag ẩn ở CUỐI câu trả lời (sau dấu chấm cuối cùng), theo đúng format:
+||LEAD_DATA:{"name":"Họ tên khách","phone":"SĐT khách","email":"Email khách","interest":"Ngành/chủ đề khách quan tâm nhất","intent_level":"hot hoặc warm hoặc cold"}||
+
+LƯU Ý NGHIÊM NGẶT:
+- Tag ||LEAD_DATA:...|| chỉ xuất hiện DUY NHẤT MỘT LẦN trong toàn bộ cuộc hội thoại — lần đầu tiên bạn có đủ cả 3 thông tin.
+- KHÔNG BAO GIỜ để lộ tag này trong phần nội dung hiển thị cho khách. Nó phải ở cuối cùng, sau nội dung tư vấn.
+- Nếu thiếu bất kỳ thông tin nào (tên / SĐT / email), KHÔNG được in tag.
+- "interest" là ngành nghề hoặc chủ đề mà khách hỏi nhiều nhất trong cuộc hội thoại.
+`;
 
 // 3. Xây dựng giao diện (UI) -> Chèn vào DOM
 function buildUI() {
@@ -73,7 +155,6 @@ let messagesHistory = [];
 
 function initChatbot() {
   buildUI();
-  loadChatbotData();
 
   const toggleBtn = document.getElementById('shd-chatbot-toggle');
   const closeBtn = document.getElementById('shd-chatbot-close-btn');
@@ -179,7 +260,7 @@ function initChatbot() {
     try {
       // 5. API Call
       const apiMessages = [
-        { role: 'system', content: systemPrompt },
+        { role: 'system', content: SYSTEM_PROMPT },
         ...messagesHistory
       ];
 
@@ -189,11 +270,19 @@ function initChatbot() {
         temperature: 0.7
       });
 
-      const botReply = completion.choices[0].message.content;
-      
+      const rawReply = completion.choices[0].message.content;
+
+      // 6. Phát hiện và xử lý tag ||LEAD_DATA:...|| 
+      const { cleanText, leadData } = extractLeadData(rawReply);
+
       hideTyping();
-      appendMessage('bot', botReply);
-      messagesHistory.push({ role: 'assistant', content: botReply });
+      appendMessage('bot', cleanText);
+      messagesHistory.push({ role: 'assistant', content: cleanText });
+
+      // 7. Nếu có lead data → gửi về Google Sheet
+      if (leadData) {
+        sendLeadToSheet(leadData);
+      }
 
     } catch (error) {
       console.error("Lỗi gọi API chatbot:", error);
@@ -204,6 +293,50 @@ function initChatbot() {
       sendBtn.disabled = false;
       inputField.focus();
     }
+  }
+}
+
+/**
+ * Trích xuất tag ||LEAD_DATA:{...}|| từ câu trả lời của AI
+ * Trả về text sạch (không có tag) và object leadData (nếu có)
+ */
+function extractLeadData(text) {
+  const regex = /\|\|LEAD_DATA:(\{.*?\})\|\|/s;
+  const match = text.match(regex);
+
+  if (match) {
+    try {
+      const leadData = JSON.parse(match[1]);
+      const cleanText = text.replace(regex, '').trim();
+      console.log('🎯 Lead captured:', leadData);
+      return { cleanText, leadData };
+    } catch (err) {
+      console.error('❌ Lỗi parse LEAD_DATA:', err);
+    }
+  }
+
+  return { cleanText: text, leadData: null };
+}
+
+/**
+ * Gửi lead data đến Google Apps Script Web App
+ */
+async function sendLeadToSheet(leadData) {
+  if (LEAD_WEBHOOK_URL === 'THAY_URL_WEB_APP_CUA_BAN_O_DAY') {
+    console.warn('⚠️ Chưa cấu hình LEAD_WEBHOOK_URL. Lead không được gửi.');
+    return;
+  }
+
+  try {
+    const response = await fetch(LEAD_WEBHOOK_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(leadData),
+      mode: 'no-cors' // Google Apps Script yêu cầu no-cors
+    });
+    console.log('✅ Lead đã gửi thành công về Google Sheet');
+  } catch (err) {
+    console.error('❌ Lỗi gửi lead:', err);
   }
 }
 
